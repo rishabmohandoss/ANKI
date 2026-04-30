@@ -6,7 +6,7 @@ function getSql() {
   if (!sqlPromise) {
     sqlPromise = import('sql.js').then((mod) =>
       mod.default({
-        locateFile: (f) => `https://sql.js.org/dist/${f}`,
+        locateFile: () => '/sql-wasm.wasm',
       })
     );
   }
