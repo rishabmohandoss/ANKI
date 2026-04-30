@@ -1,66 +1,258 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+
+import { useState, useCallback } from 'react';
+import Image from 'next/image';
+import { useAuth } from '@/components/AuthContext';
+import LoginPage from '@/components/LoginPage';
+import Header from '@/components/Header';
+import DatasetUploader from '@/components/DatasetUploader';
+import StudyCard from '@/components/StudyCard';
+import FeynmanExplanation from '@/components/FeynmanExplanation';
+import ProgressBar from '@/components/ProgressBar';
+import SessionComplete from '@/components/SessionComplete';
+import { Hero } from '@/components/ui/animated-hero';
+import { ContainerScroll } from '@/components/ui/container-scroll-animation';
+import {
+  initializeCard,
+  processRating,
+  reinsertCard,
+  buildStudyQueue,
+  calculateStats,
+} from '@/lib/spacedRepetition';
+import styles from './page.module.css';
 
 export default function Home() {
+  const { user, loading } = useAuth();
+  const [view, setView] = useState('upload');
+  const [allCards, setAllCards] = useState([]);
+  const [queue, setQueue] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isRevealed, setIsRevealed] = useState(false);
+  const [gradeResult, setGradeResult] = useState(null);
+  const [studiedCount, setStudiedCount] = useState(0);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className={styles.loadingScreen}>
+        <div className={styles.loadingSpinner} />
+      </div>
+    );
+  }
+
+  // Auth gate
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  const handleDatasetParsed = useCallback((data) => {
+    const initialized = data.cards.map((card, i) => initializeCard(card, i));
+    const studyQueue = buildStudyQueue(initialized);
+    setAllCards(initialized);
+    setQueue(studyQueue);
+    setCurrentIndex(0);
+    setStudiedCount(0);
+    setIsRevealed(false);
+    setGradeResult(null);
+    setView('study');
+  }, []);
+
+  const handleReveal = useCallback(async (userAnswer) => {
+    setIsRevealed(true);
+    const card = queue[currentIndex];
+    if (userAnswer && userAnswer.trim()) {
+      try {
+        const res = await fetch('/api/grade-answer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: card.question, correctAnswer: card.answer, userAnswer }),
+        });
+        const data = await res.json();
+        if (res.ok) setGradeResult(data);
+      } catch { /* silent */ }
+    }
+  }, [queue, currentIndex]);
+
+  const handleGrade = useCallback((rating) => {
+    const card = queue[currentIndex];
+    const updatedCard = processRating(card, rating);
+    setAllCards((prev) => prev.map((c) => (c.id === updatedCard.id ? updatedCard : c)));
+    const newQueue = reinsertCard(
+      queue.map((c) => (c.id === updatedCard.id ? updatedCard : c)),
+      updatedCard, rating
+    );
+    setStudiedCount((prev) => prev + 1);
+    if (newQueue.length === 0 || currentIndex >= newQueue.length) {
+      setQueue(newQueue);
+      setView('complete');
+      return;
+    }
+    setQueue(newQueue);
+    setCurrentIndex(Math.min(currentIndex, newQueue.length - 1));
+    setIsRevealed(false);
+    setGradeResult(null);
+  }, [queue, currentIndex]);
+
+  const handleRestart = useCallback(() => {
+    const resetCards = allCards.map((c) => ({
+      ...c, history: [], repetitions: 0, lastReview: null,
+      nextReview: null, easeFactor: 2.5, interval: 0,
+    }));
+    setAllCards(resetCards);
+    setQueue(buildStudyQueue(resetCards));
+    setCurrentIndex(0);
+    setStudiedCount(0);
+    setIsRevealed(false);
+    setGradeResult(null);
+    setView('study');
+  }, [allCards]);
+
+  const handleNewDeck = useCallback(() => {
+    setAllCards([]);
+    setQueue([]);
+    setCurrentIndex(0);
+    setStudiedCount(0);
+    setIsRevealed(false);
+    setGradeResult(null);
+    setView('upload');
+  }, []);
+
+  const stats = calculateStats(allCards);
+  const currentCard = queue[currentIndex];
+
   return (
-    <div className={styles.page}>
+    <>
+      <Header isStudying={view === 'study'} onBack={handleNewDeck} />
+
       <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.js file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
+        {view === 'upload' && (
+          <div className={`${styles.uploadView} animate-fade-in`}>
+            {/* Animated hero with rotating text */}
+            <Hero />
+
+            {/* 3D scroll animation showcase */}
+            <ContainerScroll
+              titleComponent={
+                <>
+                  <h1 className="text-4xl font-semibold text-white">
+                    The smarter way to <br />
+                    <span className="text-4xl md:text-[6rem] font-bold mt-1 leading-none">
+                      Learn Anything
+                    </span>
+                  </h1>
+                </>
+              }
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+              <Image
+                src="https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=1400&q=80"
+                alt="Study experience"
+                height={720}
+                width={1400}
+                className="mx-auto rounded-2xl object-cover h-full object-left-top"
+                draggable={false}
+              />
+            </ContainerScroll>
+
+            <section className={styles.uploaderSection}>
+              <DatasetUploader onDatasetParsed={handleDatasetParsed} />
+            </section>
+
+            {/* Feature cards with visual accents */}
+            <section className={styles.features}>
+              <div className={styles.featuresDivider}>
+                <div className={styles.dividerLine} />
+                <span className={styles.dividerText}>How it works</span>
+                <div className={styles.dividerLine} />
+              </div>
+
+              <div className={styles.featureGrid}>
+                <div className={styles.feature}>
+                  <div className={styles.featureVisual}>
+                    <div className={styles.featureRing} />
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
+                    </svg>
+                  </div>
+                  <div className={styles.featureContent}>
+                    <h3 className={styles.featureTitle}>Spaced Repetition</h3>
+                    <p className={styles.featureDesc}>
+                      Cards adapt to your knowledge. Struggle with a concept and it resurfaces. Master it and it fades away.
+                    </p>
+                  </div>
+                  <span className={styles.featureNumber}>01</span>
+                </div>
+
+                <div className={styles.feature}>
+                  <div className={styles.featureVisual}>
+                    <div className={styles.featureRing} />
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                  </div>
+                  <div className={styles.featureContent}>
+                    <h3 className={styles.featureTitle}>Feynman Explanations</h3>
+                    <p className={styles.featureDesc}>
+                      One tap for a clear, simple breakdown of any concept. Like having a tutor who speaks your language.
+                    </p>
+                  </div>
+                  <span className={styles.featureNumber}>02</span>
+                </div>
+
+                <div className={styles.feature}>
+                  <div className={styles.featureVisual}>
+                    <div className={styles.featureRing} />
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className={styles.featureContent}>
+                    <h3 className={styles.featureTitle}>Intelligent Grading</h3>
+                    <p className={styles.featureDesc}>
+                      Write your answer, get an instant AI assessment with a score and specific feedback on gaps.
+                    </p>
+                  </div>
+                  <span className={styles.featureNumber}>03</span>
+                </div>
+              </div>
+            </section>
+
+            {/* Bottom tagline */}
+            <section className={styles.footer}>
+              <p className={styles.footerText}>
+                Open source · Free forever · Built for students
+              </p>
+            </section>
+          </div>
+        )}
+
+        {view === 'study' && currentCard && (
+          <div className={`${styles.studyView} animate-fade-in`}>
+            <ProgressBar stats={stats} totalCards={allCards.length} currentIndex={studiedCount} />
+            <StudyCard
+              key={currentCard.id + '-' + currentIndex}
+              card={currentCard}
+              onReveal={handleReveal}
+              onGrade={handleGrade}
+              gradeResult={gradeResult}
+              isRevealed={isRevealed}
             />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+            {isRevealed && (
+              <div className={styles.explanationSection}>
+                <FeynmanExplanation card={currentCard} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {view === 'complete' && (
+          <SessionComplete
+            stats={stats}
+            totalCards={allCards.length}
+            onRestart={handleRestart}
+            onNewDeck={handleNewDeck}
+          />
+        )}
       </main>
-    </div>
+    </>
   );
 }

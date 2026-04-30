@@ -1,0 +1,85 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.nav {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 var(--space-lg);
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.logo {
+  font-size: 0.9rem;
+  color: var(--accent);
+  opacity: 0.7;
+}
+
+.name {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-snug);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.backBtn {
+  font-family: var(--font-body-family);
+  font-size: var(--text-xs);
+  color: var(--accent);
+  font-weight: 500;
+  padding: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.backBtn:hover {
+  opacity: 0.7;
+}
+
+/* User section */
+.userSection {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.signOut {
+  font-family: var(--font-body-family);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-weight: 400;
+  padding: 0;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.signOut:hover {
+  color: var(--text-primary);
+}
