@@ -72,7 +72,7 @@ Give a clear, simple explanation that a student could use to deeply understand t
 
   const response = await getClient().messages.create({
     model: DEFAULT_MODEL,
-    max_tokens: 600,
+    max_tokens: 1200,
     system: FEYNMAN_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userMessage }],
   });
