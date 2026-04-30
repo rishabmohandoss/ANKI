@@ -31,20 +31,6 @@ export default function Home() {
   const [gradeResult, setGradeResult] = useState(null);
   const [studiedCount, setStudiedCount] = useState(0);
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className={styles.loadingScreen}>
-        <div className={styles.loadingSpinner} />
-      </div>
-    );
-  }
-
-  // Auth gate
-  if (!user) {
-    return <LoginPage />;
-  }
-
   const handleDatasetParsed = useCallback((data) => {
     const initialized = data.cards.map((card, i) => initializeCard(card, i));
     const studyQueue = buildStudyQueue(initialized);
@@ -116,6 +102,20 @@ export default function Home() {
     setGradeResult(null);
     setView('upload');
   }, []);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className={styles.loadingScreen}>
+        <div className={styles.loadingSpinner} />
+      </div>
+    );
+  }
+
+  // Auth gate
+  if (!user) {
+    return <LoginPage />;
+  }
 
   const stats = calculateStats(allCards);
   const currentCard = queue[currentIndex];
