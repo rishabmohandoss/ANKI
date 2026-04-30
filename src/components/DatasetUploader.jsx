@@ -52,11 +52,40 @@ export default function DatasetUploader({ onDatasetParsed }) {
   const [dragActive, setDragActive] = useState(false);
   const [preview, setPreview] = useState(null);
 
-  const readFile = (file) => {
+  const readFile = async (file) => {
+    setError('');
+    setPreview(null);
+
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+
+    // Anki deck
+    if (ext === '.apkg') {
+      setLoading(true);
+      try {
+        const { parseApkg } = await import('@/lib/apkgParser');
+        const { extractTopics } = await import('@/lib/parsers');
+        const cards = await parseApkg(file);
+        if (cards.length === 0) {
+          setError('No cards found in this Anki deck.');
+          return;
+        }
+        const topics = extractTopics(cards);
+        setPreview({ cards, topics, format: 'anki', count: cards.length });
+      } catch (err) {
+        setError(err.message || 'Failed to parse Anki deck.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Known binary formats
     if (isBinaryFile(file)) {
       setError(`"${file.name}" is a binary file that can't be read as text. Open it, select all, copy, and paste the content into the text area below.`);
       return;
     }
+
+    // Text-based files
     const reader = new FileReader();
     reader.onload = (ev) => {
       setContent(ev.target.result);
@@ -147,7 +176,7 @@ export default function DatasetUploader({ onDatasetParsed }) {
               <input type="file" onChange={handleFileInput} className={styles.fileInput} />
             </label>
           </p>
-          <p className={styles.dropFormats}>JSON · CSV · PDF · Word · Plain text · and more</p>
+          <p className={styles.dropFormats}>JSON · CSV · .apkg · Plain text · and more</p>
         </div>
       </div>
 
