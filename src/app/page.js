@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import Image from 'next/image';
+import { useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/components/AuthContext';
 import LoginPage from '@/components/LoginPage';
 import Header from '@/components/Header';
@@ -30,6 +29,8 @@ export default function Home() {
   const [isRevealed, setIsRevealed] = useState(false);
   const [gradeResult, setGradeResult] = useState(null);
   const [studiedCount, setStudiedCount] = useState(0);
+
+  const studySectionRef = useRef(null);
 
   const handleDatasetParsed = useCallback((data) => {
     const initialized = data.cards.map((card, i) => initializeCard(card, i));
@@ -128,100 +129,93 @@ export default function Home() {
         {view === 'upload' && (
           <div className={`${styles.uploadView} animate-fade-in`}>
             {/* Animated hero with rotating text */}
-            <Hero />
+            <Hero
+              onContinue={() => setView('study')}
+              onCreate={() => studySectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              hasExistingDeck={allCards.length > 0}
+            />
 
-            {/* 3D scroll animation showcase */}
-            <ContainerScroll
-              titleComponent={
-                <>
+            {/* 3D scroll animation containing the full study setup */}
+            <div ref={studySectionRef}>
+              <ContainerScroll
+                titleComponent={
                   <h1 className="text-4xl font-semibold text-white">
-                    The smarter way to <br />
+                    Upload your notes, <br />
                     <span className="text-4xl md:text-[6rem] font-bold mt-1 leading-none">
-                      Learn Anything
+                      Start Studying
                     </span>
                   </h1>
-                </>
-              }
-            >
-              <Image
-                src="https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=1400&q=80"
-                alt="Study experience"
-                height={720}
-                width={1400}
-                className="mx-auto rounded-2xl object-cover h-full object-left-top"
-                draggable={false}
-              />
-            </ContainerScroll>
+                }
+              >
+                <div className="p-4 space-y-8">
+                  <DatasetUploader onDatasetParsed={handleDatasetParsed} />
 
-            <section className={styles.uploaderSection}>
-              <DatasetUploader onDatasetParsed={handleDatasetParsed} />
-            </section>
+                  <section className={styles.features}>
+                    <div className={styles.featuresDivider}>
+                      <div className={styles.dividerLine} />
+                      <span className={styles.dividerText}>How it works</span>
+                      <div className={styles.dividerLine} />
+                    </div>
 
-            {/* Feature cards with visual accents */}
-            <section className={styles.features}>
-              <div className={styles.featuresDivider}>
-                <div className={styles.dividerLine} />
-                <span className={styles.dividerText}>How it works</span>
-                <div className={styles.dividerLine} />
-              </div>
+                    <div className={styles.featureGrid}>
+                      <div className={styles.feature}>
+                        <div className={styles.featureVisual}>
+                          <div className={styles.featureRing} />
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
+                          </svg>
+                        </div>
+                        <div className={styles.featureContent}>
+                          <h3 className={styles.featureTitle}>Spaced Repetition</h3>
+                          <p className={styles.featureDesc}>
+                            Cards adapt to your knowledge. Struggle with a concept and it resurfaces. Master it and it fades away.
+                          </p>
+                        </div>
+                        <span className={styles.featureNumber}>01</span>
+                      </div>
 
-              <div className={styles.featureGrid}>
-                <div className={styles.feature}>
-                  <div className={styles.featureVisual}>
-                    <div className={styles.featureRing} />
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
-                    </svg>
-                  </div>
-                  <div className={styles.featureContent}>
-                    <h3 className={styles.featureTitle}>Spaced Repetition</h3>
-                    <p className={styles.featureDesc}>
-                      Cards adapt to your knowledge. Struggle with a concept and it resurfaces. Master it and it fades away.
+                      <div className={styles.feature}>
+                        <div className={styles.featureVisual}>
+                          <div className={styles.featureRing} />
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                        </div>
+                        <div className={styles.featureContent}>
+                          <h3 className={styles.featureTitle}>Feynman Explanations</h3>
+                          <p className={styles.featureDesc}>
+                            One tap for a clear, simple breakdown of any concept. Like having a tutor who speaks your language.
+                          </p>
+                        </div>
+                        <span className={styles.featureNumber}>02</span>
+                      </div>
+
+                      <div className={styles.feature}>
+                        <div className={styles.featureVisual}>
+                          <div className={styles.featureRing} />
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className={styles.featureContent}>
+                          <h3 className={styles.featureTitle}>Intelligent Grading</h3>
+                          <p className={styles.featureDesc}>
+                            Write your answer, get an instant AI assessment with a score and specific feedback on gaps.
+                          </p>
+                        </div>
+                        <span className={styles.featureNumber}>03</span>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className={styles.footer}>
+                    <p className={styles.footerText}>
+                      Open source · Free forever · Built for students
                     </p>
-                  </div>
-                  <span className={styles.featureNumber}>01</span>
+                  </section>
                 </div>
-
-                <div className={styles.feature}>
-                  <div className={styles.featureVisual}>
-                    <div className={styles.featureRing} />
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                  </div>
-                  <div className={styles.featureContent}>
-                    <h3 className={styles.featureTitle}>Feynman Explanations</h3>
-                    <p className={styles.featureDesc}>
-                      One tap for a clear, simple breakdown of any concept. Like having a tutor who speaks your language.
-                    </p>
-                  </div>
-                  <span className={styles.featureNumber}>02</span>
-                </div>
-
-                <div className={styles.feature}>
-                  <div className={styles.featureVisual}>
-                    <div className={styles.featureRing} />
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className={styles.featureContent}>
-                    <h3 className={styles.featureTitle}>Intelligent Grading</h3>
-                    <p className={styles.featureDesc}>
-                      Write your answer, get an instant AI assessment with a score and specific feedback on gaps.
-                    </p>
-                  </div>
-                  <span className={styles.featureNumber}>03</span>
-                </div>
-              </div>
-            </section>
-
-            {/* Bottom tagline */}
-            <section className={styles.footer}>
-              <p className={styles.footerText}>
-                Open source · Free forever · Built for students
-              </p>
-            </section>
+              </ContainerScroll>
+            </div>
           </div>
         )}
 
