@@ -55,10 +55,8 @@ export async function POST(request) {
 
     return NextResponse.json({ explanation, cached: false });
   } catch (error) {
-    console.error('Feynman explain error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to generate explanation.' },
-      { status: 500 }
-    );
+    const msg = error?.message || String(error) || 'Failed to generate explanation.';
+    console.error('Feynman explain error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

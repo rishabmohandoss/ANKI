@@ -54,8 +54,10 @@ export default function Home() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question: card.question, correctAnswer: card.answer, userAnswer }),
         });
-        const data = await res.json();
-        if (res.ok) setGradeResult(data);
+        try {
+          const data = await res.json();
+          if (res.ok) setGradeResult(data);
+        } catch { /* grading unavailable — continue without score */ }
       } catch { /* silent */ }
     }
   }, [queue, currentIndex]);

@@ -25,10 +25,8 @@ export async function POST(request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Grade answer error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to grade answer. Please try again.' },
-      { status: 500 }
-    );
+    const msg = error?.message || String(error) || 'Failed to grade answer.';
+    console.error('Grade answer error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

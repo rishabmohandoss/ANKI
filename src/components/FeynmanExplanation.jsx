@@ -24,7 +24,10 @@ export default function FeynmanExplanation({ card }) {
         body: JSON.stringify({ question: card.question, answer: card.answer, topic: '' }),
         signal: controller.signal,
       });
-      const data = await res.json();
+      let data;
+      try { data = await res.json(); } catch {
+        throw new Error(`Server error (${res.status}). Check that ANTHROPIC_API_KEY is set in Vercel.`);
+      }
       if (!res.ok) throw new Error(data.error);
       setExplanation(data.explanation);
       setCached(data.cached);
