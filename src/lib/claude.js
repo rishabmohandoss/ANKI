@@ -5,8 +5,8 @@ const client = new Anthropic({
 });
 
 // Default to Haiku for cost efficiency
-const DEFAULT_MODEL = 'claude-haiku-4-5-20241022';
-const SMART_MODEL = 'claude-sonnet-4-20250514';
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
+const SMART_MODEL = 'claude-sonnet-4-6';
 
 // ─── Prompt Templates ────────────────────────────────────────────
 
