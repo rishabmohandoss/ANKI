@@ -27,12 +27,43 @@ const SAMPLES = {
   'Biology': SAMPLE_JSON_BIO,
 };
 
+const BINARY_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]);
+
+const BINARY_EXTENSIONS = new Set(['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx']);
+
+function isBinaryFile(file) {
+  if (BINARY_TYPES.has(file.type)) return true;
+  const ext = '.' + file.name.split('.').pop().toLowerCase();
+  return BINARY_EXTENSIONS.has(ext);
+}
+
 export default function DatasetUploader({ onDatasetParsed }) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const [preview, setPreview] = useState(null);
+
+  const readFile = (file) => {
+    if (isBinaryFile(file)) {
+      setError(`"${file.name}" is a binary file that can't be read as text. Open it, select all, copy, and paste the content into the text area below.`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setContent(ev.target.result);
+      handleParse(ev.target.result);
+    };
+    reader.readAsText(file);
+  };
 
   const handleParse = async (text) => {
     if (!text || text.trim().length === 0) {
@@ -67,26 +98,12 @@ export default function DatasetUploader({ onDatasetParsed }) {
     e.preventDefault();
     setDragActive(false);
     const file = e.dataTransfer.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setContent(ev.target.result);
-        handleParse(ev.target.result);
-      };
-      reader.readAsText(file);
-    }
+    if (file) readFile(file);
   };
 
   const handleFileInput = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setContent(ev.target.result);
-        handleParse(ev.target.result);
-      };
-      reader.readAsText(file);
-    }
+    if (file) readFile(file);
   };
 
   const loadSample = (name) => {
@@ -127,10 +144,10 @@ export default function DatasetUploader({ onDatasetParsed }) {
             or{' '}
             <label className={styles.browseLabel}>
               choose a file
-              <input type="file" accept=".json,.csv,.txt" onChange={handleFileInput} className={styles.fileInput} />
+              <input type="file" onChange={handleFileInput} className={styles.fileInput} />
             </label>
           </p>
-          <p className={styles.dropFormats}>JSON · CSV · Plain text</p>
+          <p className={styles.dropFormats}>JSON · CSV · PDF · Word · Plain text · and more</p>
         </div>
       </div>
 
