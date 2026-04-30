@@ -64,11 +64,20 @@ export default function FeynmanExplanation({ card }) {
               {cached && <span className={styles.cachedTag}>Cached</span>}
               <div className={styles.text}>
                 {explanation.split('\n').map((line, i) => {
-                  if (!line.trim()) return <br key={i} />;
-                  if (line.trim().startsWith('- ') || line.trim().startsWith('• ')) {
-                    return <div key={i} className={styles.bullet}><span>·</span><span>{line.replace(/^[\s\-•]+/, '')}</span></div>;
+                  const isHeading = /^#{1,6}\s/.test(line);
+                  const clean = line
+                    .replace(/^#{1,6}\s+/, '')
+                    .replace(/\*\*(.*?)\*\*/g, '$1')
+                    .replace(/\*(.*?)\*/g, '$1')
+                    .replace(/`([^`]*)`/g, '$1')
+                    .replace(/^["']+/, '')
+                    .trim();
+                  if (!clean) return <br key={i} />;
+                  if (isHeading) return <p key={i} className={styles.sectionHeading}>{clean}</p>;
+                  if (clean.startsWith('- ') || clean.startsWith('• ')) {
+                    return <div key={i} className={styles.bullet}><span>·</span><span>{clean.replace(/^[\-•]\s+/, '')}</span></div>;
                   }
-                  return <p key={i}>{line}</p>;
+                  return <p key={i}>{clean}</p>;
                 })}
               </div>
             </div>

@@ -58,6 +58,15 @@
   margin-bottom: var(--space-sm);
 }
 
+.sectionHeading {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-xs);
+}
+
 .bullet {
   display: flex;
   gap: var(--space-sm);
