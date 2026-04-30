@@ -15,19 +15,27 @@ export default function FeynmanExplanation({ card }) {
     setLoading(true);
     setError('');
     setIsOpen(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
     try {
       const res = await fetch('/api/feynman-explain', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: card.question, answer: card.answer, topic: '' }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setExplanation(data.explanation);
       setCached(data.cached);
     } catch (err) {
-      setError(err.message || 'Failed to generate explanation');
+      if (err.name === 'AbortError') {
+        setError('Request timed out. Please try again.');
+      } else {
+        setError(err.message || 'Failed to generate explanation');
+      }
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   };

@@ -1,8 +1,15 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+let _client = null;
+function getClient() {
+  if (!_client) {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY is not set. Add it to Vercel → Settings → Environment Variables.');
+    }
+    _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+  return _client;
+}
 
 // Default to Haiku for cost efficiency
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
@@ -63,7 +70,7 @@ ${topic ? `Topic/Subject: ${topic}` : ''}
 
 Give a clear, simple explanation that a student could use to deeply understand this concept.`;
 
-  const response = await client.messages.create({
+  const response = await getClient().messages.create({
     model: DEFAULT_MODEL,
     max_tokens: 600,
     system: FEYNMAN_SYSTEM_PROMPT,
@@ -83,7 +90,7 @@ Question: ${question}
 Correct Answer: ${correctAnswer}
 Student's Answer: ${userAnswer}`;
 
-  const response = await client.messages.create({
+  const response = await getClient().messages.create({
     model: DEFAULT_MODEL,
     max_tokens: 300,
     system: GRADE_SYSTEM_PROMPT,
@@ -114,7 +121,7 @@ Student's Answer: ${userAnswer}`;
  * Parse messy/unstructured text into Q&A pairs using Claude.
  */
 export async function parseWithAI(text) {
-  const response = await client.messages.create({
+  const response = await getClient().messages.create({
     model: SMART_MODEL, // Use Sonnet for complex parsing
     max_tokens: 2000,
     system: PARSE_SYSTEM_PROMPT,

@@ -2,15 +2,20 @@ import { NextResponse } from 'next/server';
 import { generateFeynmanExplanation } from '@/lib/claude';
 import { getCachedExplanation, cacheExplanation } from '@/lib/firebase';
 
-/**
- * Generate a hash for cache key.
- */
 async function hashQuestion(question) {
   const encoder = new TextEncoder();
   const data = encoder.encode(question.toLowerCase().trim());
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Wrap any promise with a timeout — returns null on timeout instead of hanging.
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
 }
 
 export async function POST(request) {
@@ -25,36 +30,34 @@ export async function POST(request) {
       );
     }
 
-    // Check Firestore cache first
-    const questionHash = await hashQuestion(question);
-    const cached = await getCachedExplanation(questionHash);
+    // Try Firestore cache — skip if Firebase isn't configured or is slow
+    let cached = null;
+    let questionHash = null;
+    try {
+      questionHash = await hashQuestion(question);
+      cached = await withTimeout(getCachedExplanation(questionHash), 3000);
+    } catch { /* cache unavailable — proceed without it */ }
 
-    if (cached) {
-      return NextResponse.json({
-        explanation: cached.explanation,
-        cached: true,
-      });
+    if (cached?.explanation) {
+      return NextResponse.json({ explanation: cached.explanation, cached: true });
     }
 
-    // Generate fresh explanation via Claude
+    // Generate explanation with Claude
     const explanation = await generateFeynmanExplanation(question, answer, topic);
 
-    // Cache in Firestore for future requests
-    await cacheExplanation(questionHash, {
-      question,
-      answer,
-      topic: topic || '',
-      explanation,
-    });
+    // Write to cache in the background — don't block the response
+    if (questionHash) {
+      withTimeout(
+        cacheExplanation(questionHash, { question, answer, topic: topic || '', explanation }),
+        3000
+      ).catch(() => {});
+    }
 
-    return NextResponse.json({
-      explanation,
-      cached: false,
-    });
+    return NextResponse.json({ explanation, cached: false });
   } catch (error) {
     console.error('Feynman explain error:', error);
     return NextResponse.json(
-      { error: 'Failed to generate explanation. Please try again.' },
+      { error: error.message || 'Failed to generate explanation.' },
       { status: 500 }
     );
   }
