@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server';
-import { detectFormat, parseJSON, parseCSV, parsePlainText, extractTopics } from '@/lib/parsers';
+import {
+  detectFormat,
+  parseJSON,
+  parseCSV,
+  parsePlainText,
+  parseQA,
+  parseColonPairs,
+  extractTopics,
+} from '@/lib/parsers';
 import { parseWithAI } from '@/lib/claude';
 
 export async function POST(request) {
@@ -18,20 +26,14 @@ export async function POST(request) {
     let cards = [];
 
     switch (format) {
-      case 'json':
-        cards = parseJSON(content);
-        break;
-      case 'csv':
-        cards = parseCSV(content);
-        break;
-      case 'plaintext':
-        cards = parsePlainText(content);
-        break;
-      case 'unknown':
+      case 'json':      cards = parseJSON(content);       break;
+      case 'csv':       cards = parseCSV(content);        break;
+      case 'plaintext': cards = parsePlainText(content);  break;
+      case 'qa':        cards = parseQA(content);         break;
+      case 'colons':    cards = parseColonPairs(content); break;
       default:
-        // Use Claude to intelligently parse unstructured text
+        // Last resort — hand off to Claude (Haiku)
         cards = await parseWithAI(content);
-        break;
     }
 
     if (cards.length === 0) {
@@ -41,19 +43,15 @@ export async function POST(request) {
       );
     }
 
-    const topics = extractTopics(cards);
-
     return NextResponse.json({
       cards,
-      topics,
+      topics: extractTopics(cards),
       format,
       count: cards.length,
     });
   } catch (error) {
-    console.error('Parse dataset error:', error);
-    return NextResponse.json(
-      { error: 'Failed to parse dataset. Please check the format and try again.' },
-      { status: 500 }
-    );
+    const msg = error?.message || 'Failed to parse dataset.';
+    console.error('Parse dataset error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -5,12 +5,12 @@
 /**
  * Detect the format of input text.
  * @param {string} text - Raw input text
- * @returns {'json' | 'csv' | 'plaintext' | 'unknown'}
+ * @returns {'json'|'csv'|'plaintext'|'qa'|'colons'|'unknown'}
  */
 export function detectFormat(text) {
   const trimmed = text.trim();
 
-  // Check for JSON array
+  // JSON array
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
     try {
       const parsed = JSON.parse(trimmed);
@@ -18,7 +18,7 @@ export function detectFormat(text) {
     } catch { /* not valid JSON */ }
   }
 
-  // Check for CSV (has header row with common column names)
+  // CSV / TSV with header
   const firstLine = trimmed.split('\n')[0].toLowerCase();
   if (
     (firstLine.includes('question') && firstLine.includes('answer')) ||
@@ -27,10 +27,21 @@ export function detectFormat(text) {
     return 'csv';
   }
 
-  // Check for plain text delimiter
-  if (trimmed.includes('|||')) {
-    return 'plaintext';
+  // ||| delimiter
+  if (trimmed.includes('|||')) return 'plaintext';
+
+  // Q: / A: blocks
+  if (/^[Qq]\s*[.:\-]\s*.+/m.test(trimmed) && /^[Aa]\s*[.:\-]\s*.+/m.test(trimmed)) {
+    return 'qa';
   }
+
+  // "Term: definition" — one pair per line, short left-hand side
+  const lines = trimmed.split('\n').filter(l => l.trim());
+  const colonLines = lines.filter(l => {
+    const idx = l.indexOf(':');
+    return idx > 1 && idx < 60 && idx < l.length - 2;
+  });
+  if (lines.length >= 2 && colonLines.length / lines.length >= 0.75) return 'colons';
 
   return 'unknown';
 }
@@ -142,6 +153,45 @@ export function parsePlainText(text) {
         };
       }
       return null;
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Parse Q: / A: block format.
+ * Handles "Q: ..." / "A: ..." with any separator (. : -)
+ */
+export function parseQA(text) {
+  const cards = [];
+  // Split on blank lines or on the next Q: marker
+  const blocks = text.split(/\n{2,}|(?=^[Qq]\s*[.:\-])/m);
+  for (const block of blocks) {
+    const qMatch = block.match(/^[Qq]\s*[.:\-]\s*(.+)/m);
+    const aMatch = block.match(/^[Aa]\s*[.:\-]\s*([\s\S]+)/m);
+    if (qMatch && aMatch) {
+      cards.push({
+        question: qMatch[1].trim(),
+        answer: aMatch[1].trim().split('\n')[0].trim(),
+      });
+    }
+  }
+  return cards;
+}
+
+/**
+ * Parse "Term: Definition" lines (one card per line).
+ */
+export function parseColonPairs(text) {
+  return text
+    .trim()
+    .split('\n')
+    .map(line => {
+      const idx = line.indexOf(':');
+      if (idx < 2 || idx >= 60 || idx >= line.length - 2) return null;
+      return {
+        question: line.slice(0, idx).trim(),
+        answer: line.slice(idx + 1).trim(),
+      };
     })
     .filter(Boolean);
 }
