@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './FeynmanExplanation.module.css';
 
 export default function FeynmanExplanation({ card }) {
@@ -49,8 +50,15 @@ export default function FeynmanExplanation({ card }) {
         {loading ? 'Loading...' : isOpen ? 'Hide explanation' : 'Explain this concept'}
       </button>
 
+      <AnimatePresence>
       {isOpen && (
-        <div className={`${styles.panel} animate-slide-down`}>
+        <motion.div
+          className={styles.panel}
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+        >
           {loading && (
             <div className={styles.skeletons}>
               <div className={`${styles.skelLine} skeleton`} style={{ width: '85%' }} />
@@ -82,8 +90,9 @@ export default function FeynmanExplanation({ card }) {
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
