@@ -6,8 +6,11 @@ import {
   getDoc,
   setDoc,
   getDocs,
+  addDoc,
+  deleteDoc,
   query,
   where,
+  orderBy,
   serverTimestamp,
 } from 'firebase/firestore';
 import {
@@ -139,6 +142,64 @@ export function onAuthChange(callback) {
     return () => {};
   }
   return onAuthStateChanged(auth, callback);
+}
+
+// ─── Deck Storage ────────────────────────────────────────────────
+
+export async function saveDeck(uid, { name, format, topics, cards }) {
+  if (!db) return null;
+  try {
+    const ref = await addDoc(collection(db, 'users', uid, 'decks'), {
+      name,
+      format,
+      topics: topics || [],
+      totalCards: cards.length,
+      cards,
+      accuracy: null,
+      cardsStudied: 0,
+      createdAt: serverTimestamp(),
+      lastStudied: null,
+    });
+    return ref.id;
+  } catch (e) {
+    console.error('saveDeck:', e.message);
+    return null;
+  }
+}
+
+export async function updateDeck(uid, deckId, { cards, accuracy, cardsStudied }) {
+  if (!db || !deckId) return;
+  try {
+    await setDoc(
+      doc(db, 'users', uid, 'decks', deckId),
+      { cards, accuracy, cardsStudied, lastStudied: serverTimestamp() },
+      { merge: true }
+    );
+  } catch (e) {
+    console.error('updateDeck:', e.message);
+  }
+}
+
+export async function getUserDecks(uid) {
+  if (!db) return [];
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'users', uid, 'decks'), orderBy('createdAt', 'desc'))
+    );
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    console.error('getUserDecks:', e.message);
+    return [];
+  }
+}
+
+export async function deleteDeck(uid, deckId) {
+  if (!db) return;
+  try {
+    await deleteDoc(doc(db, 'users', uid, 'decks', deckId));
+  } catch (e) {
+    console.error('deleteDeck:', e.message);
+  }
 }
 
 export { app, db, auth };

@@ -144,6 +144,112 @@
   z-index: 1;
 }
 
+/* ─── Past Decks ───────────────────────────────────────────── */
+
+.pastDecks {
+  margin-bottom: var(--space-3xl);
+}
+
+.pastDecksLabel {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-md);
+}
+
+.decksLoadingText {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  text-align: center;
+  margin-bottom: var(--space-2xl);
+}
+
+.deckList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.deckItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--surface-primary);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.deckItem:hover {
+  background: var(--surface-secondary);
+}
+
+.deckInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.deckName {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deckMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.deckActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.resumeBtn {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--accent);
+  padding: 6px 14px;
+  border: 1px solid rgba(41, 151, 255, 0.3);
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.resumeBtn:hover {
+  background: rgba(41, 151, 255, 0.08);
+}
+
+.deleteBtn {
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-tertiary);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.deleteBtn:hover {
+  color: var(--color-error);
+}
+
 /* ─── Uploader ─────────────────────────────────────────────── */
 
 .uploaderSection {

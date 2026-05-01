@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/components/AuthContext';
 import LoginPage from '@/components/LoginPage';
@@ -18,10 +18,36 @@ import {
   buildStudyQueue,
   calculateStats,
 } from '@/lib/spacedRepetition';
+import {
+  saveDeck,
+  updateDeck,
+  getUserDecks,
+  deleteDeck,
+} from '@/lib/firebase';
 import styles from './page.module.css';
+
+function formatRelativeDate(timestamp) {
+  if (!timestamp) return '';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const days = Math.floor((Date.now() - date.getTime()) / 86400000);
+  if (days === 0) return 'today';
+  if (days === 1) return 'yesterday';
+  return `${days}d ago`;
+}
+
+function deckNameFromData(data) {
+  if (data.topics?.length > 0) {
+    const t = data.topics[0];
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  if (data.format === 'anki') return 'Anki Deck';
+  return 'Study Deck';
+}
 
 export default function Home() {
   const { user, loading } = useAuth();
+
+  // Study state
   const [view, setView] = useState('upload');
   const [allCards, setAllCards] = useState([]);
   const [queue, setQueue] = useState([]);
@@ -30,19 +56,60 @@ export default function Home() {
   const [gradeResult, setGradeResult] = useState(null);
   const [studiedCount, setStudiedCount] = useState(0);
 
+  // Persistence state
+  const [savedDecks, setSavedDecks] = useState([]);
+  const [currentDeckId, setCurrentDeckId] = useState(null);
+  const [decksLoading, setDecksLoading] = useState(false);
+
   const studySectionRef = useRef(null);
+
+  // Load saved decks when user logs in
+  useEffect(() => {
+    if (!user) { setSavedDecks([]); return; }
+    setDecksLoading(true);
+    getUserDecks(user.uid)
+      .then(setSavedDecks)
+      .catch(() => {})
+      .finally(() => setDecksLoading(false));
+  }, [user]);
+
+  // ── Handlers ──────────────────────────────────────────────────
 
   const handleDatasetParsed = useCallback((data) => {
     const initialized = data.cards.map((card, i) => initializeCard(card, i));
-    const studyQueue = buildStudyQueue(initialized);
     setAllCards(initialized);
-    setQueue(studyQueue);
+    setQueue(buildStudyQueue(initialized));
     setCurrentIndex(0);
     setStudiedCount(0);
     setIsRevealed(false);
     setGradeResult(null);
     setView('study');
-  }, []);
+
+    if (user) {
+      saveDeck(user.uid, {
+        name: deckNameFromData(data),
+        format: data.format,
+        topics: data.topics || [],
+        cards: initialized,
+      }).then(id => {
+        if (id) {
+          setCurrentDeckId(id);
+          setSavedDecks(prev => [{
+            id,
+            name: deckNameFromData(data),
+            format: data.format,
+            topics: data.topics || [],
+            totalCards: initialized.length,
+            cards: initialized,
+            accuracy: null,
+            cardsStudied: 0,
+            createdAt: { toDate: () => new Date() },
+            lastStudied: null,
+          }, ...prev]);
+        }
+      }).catch(() => {});
+    }
+  }, [user]);
 
   const handleReveal = useCallback(async (userAnswer) => {
     setIsRevealed(true);
@@ -57,7 +124,7 @@ export default function Home() {
         try {
           const data = await res.json();
           if (res.ok) setGradeResult(data);
-        } catch { /* grading unavailable — continue without score */ }
+        } catch { /* grading unavailable */ }
       } catch { /* silent */ }
     }
   }, [queue, currentIndex]);
@@ -65,25 +132,43 @@ export default function Home() {
   const handleGrade = useCallback((rating) => {
     const card = queue[currentIndex];
     const updatedCard = processRating(card, rating);
-    setAllCards((prev) => prev.map((c) => (c.id === updatedCard.id ? updatedCard : c)));
+    const updatedAllCards = allCards.map(c => c.id === updatedCard.id ? updatedCard : c);
+    setAllCards(updatedAllCards);
+
     const newQueue = reinsertCard(
-      queue.map((c) => (c.id === updatedCard.id ? updatedCard : c)),
-      updatedCard, rating
+      queue.map(c => c.id === updatedCard.id ? updatedCard : c),
+      updatedCard,
+      rating
     );
-    setStudiedCount((prev) => prev + 1);
+    setStudiedCount(prev => prev + 1);
+
     if (newQueue.length === 0 || currentIndex >= newQueue.length) {
       setQueue(newQueue);
       setView('complete');
+      // Save final state to Firestore
+      if (user && currentDeckId) {
+        const finalStats = calculateStats(updatedAllCards);
+        updateDeck(user.uid, currentDeckId, {
+          cards: updatedAllCards,
+          accuracy: finalStats.accuracy,
+          cardsStudied: finalStats.cardsStudied,
+        }).catch(() => {});
+        setSavedDecks(prev => prev.map(d =>
+          d.id === currentDeckId
+            ? { ...d, cards: updatedAllCards, accuracy: finalStats.accuracy, cardsStudied: finalStats.cardsStudied, lastStudied: { toDate: () => new Date() } }
+            : d
+        ));
+      }
       return;
     }
     setQueue(newQueue);
     setCurrentIndex(Math.min(currentIndex, newQueue.length - 1));
     setIsRevealed(false);
     setGradeResult(null);
-  }, [queue, currentIndex]);
+  }, [queue, currentIndex, allCards, user, currentDeckId]);
 
   const handleRestart = useCallback(() => {
-    const resetCards = allCards.map((c) => ({
+    const resetCards = allCards.map(c => ({
       ...c, history: [], repetitions: 0, lastReview: null,
       nextReview: null, easeFactor: 2.5, interval: 0,
     }));
@@ -97,16 +182,43 @@ export default function Home() {
   }, [allCards]);
 
   const handleNewDeck = useCallback(() => {
+    // Persist progress before navigating away
+    if (user && currentDeckId && studiedCount > 0) {
+      const stats = calculateStats(allCards);
+      updateDeck(user.uid, currentDeckId, {
+        cards: allCards,
+        accuracy: stats.accuracy,
+        cardsStudied: stats.cardsStudied,
+      }).catch(() => {});
+    }
     setAllCards([]);
     setQueue([]);
     setCurrentIndex(0);
     setStudiedCount(0);
     setIsRevealed(false);
     setGradeResult(null);
+    setCurrentDeckId(null);
     setView('upload');
+  }, [user, currentDeckId, allCards, studiedCount]);
+
+  const handleResumeDeck = useCallback((deck) => {
+    setAllCards(deck.cards);
+    setQueue(buildStudyQueue(deck.cards));
+    setCurrentIndex(0);
+    setStudiedCount(0);
+    setIsRevealed(false);
+    setGradeResult(null);
+    setCurrentDeckId(deck.id);
+    setView('study');
   }, []);
 
-  // Loading state
+  const handleDeleteDeck = useCallback((deckId) => {
+    setSavedDecks(prev => prev.filter(d => d.id !== deckId));
+    if (user) deleteDeck(user.uid, deckId).catch(() => {});
+  }, [user]);
+
+  // ── Auth gates ────────────────────────────────────────────────
+
   if (loading) {
     return (
       <div className={styles.loadingScreen}>
@@ -115,10 +227,7 @@ export default function Home() {
     );
   }
 
-  // Auth gate
-  if (!user) {
-    return <LoginPage />;
-  }
+  if (!user) return <LoginPage />;
 
   const stats = calculateStats(allCards);
   const currentCard = queue[currentIndex];
@@ -130,12 +239,48 @@ export default function Home() {
       <main className={styles.main}>
         {view === 'upload' && (
           <div className={`${styles.uploadView} animate-fade-in`}>
-            {/* Hero */}
             <Hero
               onContinue={() => setView('study')}
               onCreate={() => studySectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
               hasExistingDeck={allCards.length > 0}
             />
+
+            {/* Past decks */}
+            {savedDecks.length > 0 && (
+              <section className={styles.pastDecks}>
+                <p className={styles.pastDecksLabel}>Continue where you left off</p>
+                <div className={styles.deckList}>
+                  {savedDecks.map(deck => (
+                    <div key={deck.id} className={styles.deckItem}>
+                      <div className={styles.deckInfo}>
+                        <span className={styles.deckName}>{deck.name}</span>
+                        <div className={styles.deckMeta}>
+                          <span>{deck.totalCards} cards</span>
+                          {deck.accuracy != null && (
+                            <span>{deck.accuracy}% accuracy</span>
+                          )}
+                          {deck.lastStudied && (
+                            <span>{formatRelativeDate(deck.lastStudied)}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className={styles.deckActions}>
+                        <button className={styles.resumeBtn} onClick={() => handleResumeDeck(deck)}>
+                          Resume
+                        </button>
+                        <button className={styles.deleteBtn} onClick={() => handleDeleteDeck(deck.id)}>
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {decksLoading && (
+              <p className={styles.decksLoadingText}>Loading your decks…</p>
+            )}
 
             {/* Upload section */}
             <section ref={studySectionRef} className={styles.uploaderSection}>
