@@ -9,11 +9,12 @@ import {
   extractTopics,
 } from '@/lib/parsers';
 import { parseWithAI } from '@/lib/claude';
+import { checkUsage, CALL_COST } from '@/lib/firebaseAdmin';
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { content, format: requestedFormat } = body;
+    const { content, format: requestedFormat, uid } = body;
 
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
       return NextResponse.json(
@@ -31,9 +32,18 @@ export async function POST(request) {
       case 'plaintext': cards = parsePlainText(content);  break;
       case 'qa':        cards = parseQA(content);         break;
       case 'colons':    cards = parseColonPairs(content); break;
-      default:
-        // Last resort — hand off to Claude (Haiku)
+      default: {
+        // Last resort — hand off to Claude (Haiku), check budget first
+        const usage = await checkUsage(uid, CALL_COST.parse);
+        if (!usage.ok) {
+          return NextResponse.json(
+            { error: 'Monthly AI limit reached. Please use a structured format (JSON, CSV) instead.' },
+            { status: 429 }
+          );
+        }
         cards = await parseWithAI(content);
+        break;
+      }
     }
 
     if (cards.length === 0) {

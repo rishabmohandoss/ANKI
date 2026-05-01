@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/components/AuthContext';
 import styles from './FeynmanExplanation.module.css';
 
 export default function FeynmanExplanation({ card }) {
+  const { user } = useAuth();
   const [explanation, setExplanation] = useState('');
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -22,7 +24,7 @@ export default function FeynmanExplanation({ card }) {
       const res = await fetch('/api/feynman-explain', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: card.question, answer: card.answer, topic: '' }),
+        body: JSON.stringify({ question: card.question, answer: card.answer, topic: '', uid: user?.uid }),
         signal: controller.signal,
       });
       let data;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@/components/AuthContext';
 import styles from './DatasetUploader.module.css';
 
 const SAMPLE_JSON_CS = [
@@ -46,6 +47,7 @@ function isBinaryFile(file) {
 }
 
 export default function DatasetUploader({ onDatasetParsed }) {
+  const { user } = useAuth();
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -106,7 +108,7 @@ export default function DatasetUploader({ onDatasetParsed }) {
       const res = await fetch('/api/parse-dataset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: text }),
+        body: JSON.stringify({ content: text, uid: user?.uid }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to parse');

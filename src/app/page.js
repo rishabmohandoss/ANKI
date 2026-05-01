@@ -119,7 +119,7 @@ export default function Home() {
         const res = await fetch('/api/grade-answer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: card.question, correctAnswer: card.answer, userAnswer }),
+          body: JSON.stringify({ question: card.question, correctAnswer: card.answer, userAnswer, uid: user?.uid }),
         });
         try {
           const data = await res.json();
